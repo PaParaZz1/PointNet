@@ -80,7 +80,7 @@ class PointNetSeg(nn.Module):
 		self.input_transform = InputTransform()
 		self.conv1 = ConvBlockSequential(in_channels = 3, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.conv2 = ConvBlockSequential(in_channels = 64, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
-		self.feature_transform = FeatureTransform(num_points)
+		self.feature_transform = FeatureTransform()
 		self.conv3 = ConvBlockSequential(in_channels = 64, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.conv4 = ConvBlockSequential(in_channels = 64, out_channels = 128, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.conv5 = ConvBlockSequential(in_channels = 128, out_channels = 1024, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
@@ -114,13 +114,11 @@ class PointNetSeg(nn.Module):
 		
 	
 		global_feat_expand = global_feat.repeat(1, 1, num_points) # B x 1024 x N
-		print("g ex{}".format(global_feat_expand.shape))
-		print("p {}".format(point_feat.shape))
 		concat_feat = torch.cat([point_feat, global_feat_expand], 1) # B x 1088 x N 
 		x = self.conv6(concat_feat)
 		x = self.conv7(x)
 		x = self.conv8(x)
 		x = self.conv9(x)
 		x = self.conv10(x) # B x num_class x N
-		return x.transpose(2,1), feature_transform
+		return x.permute(0,2,1), feature_transform
 		

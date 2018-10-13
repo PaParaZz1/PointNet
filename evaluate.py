@@ -11,7 +11,7 @@ from network import PointNetSeg
 
 def test(opt):
 	
-	test_dataset = TestDataset(root = '/mnt/lustre/niuyazhe/data/BDCI/test_set/', classification = False, train = False)
+	test_dataset = TestDataset(root = '/mnt/lustre/niuyazhe/data/BDCI/test_set/', train = False)
 	test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batchsize,
 												  shuffle=False, num_workers=int(opt.workers))
 
@@ -23,7 +23,7 @@ def test(opt):
 	net = nn.DataParallel(net.cuda())
 	if opt.dev_model != '':
 		net.load_state_dict(torch.load(opt.dev_model))
-	else
+	else:
 		raise BaseException("no pretained model")
 	net.eval()
 	count = 0
@@ -49,10 +49,3 @@ if __name__ == "__main__":
 		opt = parser.parse_args()
 		print (opt)
 		test(opt)
-
-		opt.manualSeed = random.randint(1, 10000) # fix seed
-		print("Random Seed: ", opt.manualSeed)
-		random.seed(opt.manualSeed)
-		torch.manual_seed(opt.manualSeed)
-		
-		train(opt)

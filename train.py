@@ -1,5 +1,6 @@
 from __future__ import print_function
 import argparse
+import time
 import os
 import random
 import numpy as np
@@ -15,17 +16,18 @@ from loss import *
 
 def train(opt):
 
-		train_dataset = PartDataset(root = '/mnt/lustre/niuyazhe/data/BDCI/train_set/', classification = False)
+		train_dataset = PartDataset(root = '/mnt/lustre/niuyazhe/', train = True)
 		train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batchsize,
 												  shuffle=True, num_workers=int(opt.workers))
 
-		dev_dataset = PartDataset(root = '/mnt/lustre/niuyazhe/data/BDCI/dev_set/', classification = False, train = False)
+		dev_dataset = PartDataset(root = '/mnt/lustre/niuyazhe/', train = False)
 		dev_dataloader = torch.utils.data.DataLoader(dev_dataset, batch_size=opt.batchsize,
 												  shuffle=True, num_workers=int(opt.workers))
 
-		num_classes = dataset.num_seg_classes
-		num_points = dataset.num_points
-		print(len(train_dataset), len(dev_dataset))
+		num_classes = train_dataset.num_seg_classes
+		num_points = train_dataset.npoints
+		print(len(train_dataset))
+		print(len(dev_dataset))
 		print('classes', num_classes)
 		print('points', num_points)
 		try:
@@ -36,20 +38,22 @@ def train(opt):
 		blue = lambda x:'\033[94m' + x + '\033[0m'
 
 
-		net = PointNetSeg(k = num_classes)
+		net = PointNetSeg(num_class = num_classes)
 		net = nn.DataParallel(net.cuda())
 		net.train()
 
 		if opt.model != '':
 			net.load_state_dict(torch.load(opt.model))
 
-		optimizer = optim.Adam(net.parameters(), lr=1e-3, momentum=0.9)
+		optimizer = optim.Adam(net.parameters(), lr=1e-3)
 
 		num_batch = len(train_dataset)/opt.batchsize
-
+		t = 0
 		for epoch in range(opt.nepoch):
+			t = time.time()
 			for i, data in enumerate(train_dataloader, 0):
 				points, target = data
+				points = points.permute(0,2,1)
 				points, target = Variable(points).cuda(), Variable(target).cuda()
 				output, transform = net(points)
 				
@@ -60,20 +64,23 @@ def train(opt):
 				
 				output_choice = output.data.max(2)[1]
 				correct = output_choice.eq(target.data).cpu().sum()
-				print('[%d: %d/%d] train loss: %f accuracy: %f' %(epoch, i, num_batch, loss.item(), correct.item()/float(opt.batchSize * num_points))) 
+				print('[%d: %d/%d] train loss: %f accuracy: %f' %(epoch, i, num_batch, loss.data[0], correct/float(opt.batchsize * num_points))) 
 				if i % 10 == 9:
 					net.eval()
 					j, data = next(enumerate(dev_dataloader, 0))
 					points, target = data
+					points = points.permute(0,2,1)
 					points, target = Variable(points).cuda(), Variable(target).cuda()
 					output, _ = net(points)
 					
 					loss = LossFunctionTest(output, target)
 					output_choice = output.data.max(2)[1]
 					correct = output_choice.eq(target.data).cpu().sum()
-					print('[%d: %d/%d] %s loss: %f accuracy: %f' %(epoch, i, num_batch, blue('test'), loss.item(), correct.item()/float(opt.batchSize * num_points)))
+					print('[%d: %d/%d] %s loss: %f accuracy: %f' %(epoch, i, num_batch, blue('test'), loss.data[0], correct/float(opt.batchsize * num_points)))
 					net.train()
 			torch.save(net.state_dict(), '%s/seg_model_%d.pth' % (opt.outdir, epoch))
+			t = time.time() - t
+			print("epoch:%d------time:%d min %d s"%(epoch, t//60, t%60))
 
 def dev(opt):
 	
@@ -103,7 +110,6 @@ def dev(opt):
 		print('[%s: %d/%d] %s accuracy: %f' %("dev", i, num_batch, blue('test'), correct.item()/float(opt.batchSize * num_points)))
 		for i in range(1,8):
 			continue
-
 if __name__ == "__main__":
 		parser = argparse.ArgumentParser()
 		parser.add_argument('--batchsize', type=int, default=32, help='input batch size')
