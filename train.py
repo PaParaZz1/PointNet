@@ -24,7 +24,7 @@ def train(opt):
 		dev_dataloader = torch.utils.data.DataLoader(dev_dataset, batch_size=opt.batchsize,
 												  shuffle=True, num_workers=int(opt.workers))
 
-		num_classes = train_dataset.num_seg_classes
+		num_classes = 8#train_dataset.num_seg_classes
 		num_points = train_dataset.npoints
 		print(len(train_dataset))
 		print(len(dev_dataset))
@@ -45,12 +45,15 @@ def train(opt):
 		if opt.model != '':
 			net.load_state_dict(torch.load(opt.model))
 
-		optimizer = optim.Adam(net.parameters(), lr=1e-3)
+		optimizer = optim.Adam(net.parameters(), lr=1e-4)
+		lr_scheduler = MultiStepLR(optimizer, milestones=[10,20], gamma = 0.6)
 
 		num_batch = len(train_dataset)/opt.batchsize
 		t = 0
 		for epoch in range(opt.nepoch):
 			t = time.time()
+			lr_scheduler.step()
+			lr = lr_scheduler.get_lr()[0]
 			for i, data in enumerate(train_dataloader, 0):
 				points, target = data
 				points = points.permute(0,2,1)
@@ -77,7 +80,80 @@ def train(opt):
 					output_choice = output.data.max(2)[1]
 					correct = output_choice.eq(target.data).cpu().sum()
 					print('[%d: %d/%d] %s loss: %f accuracy: %f' %(epoch, i, num_batch, blue('test'), loss.data[0], correct/float(opt.batchsize * num_points)))
-					net.train()
+					local_IOU = 0.
+					val = 7
+					target = target.data
+					o1 = torch.eq(output_choice, 1)
+					t1 = torch.eq(target, 1)
+					up = (o1&t1).sum()
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = up*1.0/div
+						local_IOU += r1
+					
+
+					o1 = torch.eq(output_choice, 2)
+					t1 = torch.eq(target, 2)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					
+
+					o1 = torch.eq(output_choice, 3)
+					t1 = torch.eq(target, 3)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					
+					
+					o1 = torch.eq(output_choice, 4)
+					t1 = torch.eq(target, 4)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					
+
+					o1 = torch.eq(output_choice, 5)
+					t1 = torch.eq(target, 5)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					
+
+					o1 = torch.eq(output_choice, 6)
+					t1 = torch.eq(target, 6)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					
+					
+					o1 = torch.eq(output_choice, 7)
+					t1 = torch.eq(target, 7)
+					div = (o1|t1).sum()
+					if div == 0:
+						val -= 1
+					else:
+						r1 = ((o1&t1).sum())/div
+						local_IOU += r1
+					local_IOU /= val
+					print("local IOU:{}".format(local_IOU))
 			torch.save(net.state_dict(), '%s/seg_model_%d.pth' % (opt.outdir, epoch))
 			t = time.time() - t
 			print("epoch:%d------time:%d min %d s"%(epoch, t//60, t%60))
@@ -112,11 +188,11 @@ def dev(opt):
 			continue
 if __name__ == "__main__":
 		parser = argparse.ArgumentParser()
-		parser.add_argument('--batchsize', type=int, default=32, help='input batch size')
-		parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-		parser.add_argument('--nepoch', type=int, default=300, help='number of epochs to train for')
-		parser.add_argument('--outdir', type=str, default='seg',  help='output folder')
-		parser.add_argument('--model', type=str, default = '',  help='pretrained model path')
+		parser.add_argument('--batchsize', type=int, default=128, help='input batch size')
+		parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
+		parser.add_argument('--nepoch', type=int, default=30, help='number of epochs to train for')
+		parser.add_argument('--outdir', type=str, default='fl7',  help='output folder')
+		parser.add_argument('--model', type=str, default = 'seg006/seg_model_2.pth',  help='pretrained model path')
 		parser.add_argument('--dev_model', type=str, default = '',  help='pretrained dev model path')
 
 
