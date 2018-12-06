@@ -11,50 +11,53 @@ from modules import ConvBlockSequential
 
 
 class InputTransform(nn.Module):
-	def __init__(self, k = 3):
+	def __init__(self, k = 4):
 		super(InputTransform, self).__init__()
 		self.k = k
-		self.conv1 = ConvBlockSequential(in_channels = 3, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv1 = ConvBlockSequential(in_channels = 4, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.conv2 = ConvBlockSequential(in_channels = 64, out_channels = 128, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
-		self.conv3 = ConvBlockSequential(in_channels = 128, out_channels = 1024, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv3 = ConvBlockSequential(in_channels = 128, out_channels = 512, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv4 = ConvBlockSequential(in_channels = 512, out_channels = 1024, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.fc1 = nn.Linear(1024, 512)
 		self.bn1 = nn.BatchNorm2d(512)
 		self.fc2 = nn.Linear(512, 256)
 		self.bn2 = nn.BatchNorm2d(256)
-		self.fc3 = nn.Linear(256, 3*k)
-		self.act = nn.ReLU()
+		self.fc3 = nn.Linear(256, 4*k)
+		self.act = nn.PReLU(init=0.1)
+		self.dropout = nn.Dropout(0.1)
 
 	def forward(self, x):
 		batch_size = x.size()[0]
 		x = self.conv1(x)
 		x = self.conv2(x)
 		x = self.conv3(x)
+		x = self.conv4(x)
 		x = torch.max(x, 2)[0]
 		x = x.view(-1, 1024)
 
-		x = self.act(self.bn1(self.fc1(x)))
-		x = self.act(self.bn2(self.fc2(x)))
+		x = self.dropout(x)
+		x = self.act((self.fc1(x)))
+		x = self.act((self.fc2(x)))
 		x = self.fc3(x)
-		iden = Variable(torch.from_numpy(np.eye(self.k).astype(np.float32))).view(1,self.k*3).repeat(batch_size,1)
+		iden = Variable(torch.from_numpy(np.eye(self.k).astype(np.float32))).view(1,self.k*4).repeat(batch_size,1)
 		if x.is_cuda:
 			iden = iden.cuda()
 		x = x + iden
-		x = x.view(-1, 3, self.k)
+		x = x.view(-1, 4, self.k)
 		return x
 
 class FeatureTransform(nn.Module):
 	def __init__(self, k = 64):
 		super(FeatureTransform, self).__init__()
 		self.k = k
-		self.conv1 = ConvBlockSequential(in_channels = 64, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
-		self.conv2 = ConvBlockSequential(in_channels = 64, out_channels = 128, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
-		self.conv3 = ConvBlockSequential(in_channels = 128, out_channels = 1024, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
-		self.fc1 = nn.Linear(1024, 512)
-		self.bn1 = nn.BatchNorm2d(512)
-		self.fc2 = nn.Linear(512, 256)
-		self.bn2 = nn.BatchNorm2d(256)
-		self.fc3 = nn.Linear(256, k*k)
-		self.act = nn.ReLU()
+		self.conv1 = ConvBlockSequential(in_channels = 64, out_channels = 128, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv2 = ConvBlockSequential(in_channels = 128, out_channels = 256, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv3 = ConvBlockSequential(in_channels = 256, out_channels = 1024, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.fc1 = nn.Linear(1024, 2048)
+		self.fc2 = nn.Linear(2048 ,k*k)
+		self.act = nn.PReLU(init=0.1)
+		self.dropout1 = nn.Dropout(0.2)
+		self.dropout2 = nn.Dropout(0.3)
 
 	def forward(self, x):
 		batch_size = x.size()[0]
@@ -64,9 +67,10 @@ class FeatureTransform(nn.Module):
 		x = torch.max(x, 2)[0]
 		x = x.view(-1, 1024)
 
-		x = self.act(self.bn1(self.fc1(x)))
-		x = self.act(self.bn2(self.fc2(x)))
-		x = self.fc3(x)
+		x = self.dropout1(x)
+		x = self.act((self.fc1(x)))
+		x = self.dropout2(x)
+		x = self.fc2(x)
 		iden = Variable(torch.from_numpy(np.eye(self.k).astype(np.float32))).view(1,self.k*self.k).repeat(batch_size,1)
 		if x.is_cuda:
 			iden = iden.cuda()
@@ -78,7 +82,7 @@ class PointNetSeg(nn.Module):
 	def __init__(self, num_class = 8):
 		super(PointNetSeg, self).__init__()
 		self.input_transform = InputTransform()
-		self.conv1 = ConvBlockSequential(in_channels = 3, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
+		self.conv1 = ConvBlockSequential(in_channels = 4, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.conv2 = ConvBlockSequential(in_channels = 64, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)
 		self.feature_transform = FeatureTransform()
 		self.conv3 = ConvBlockSequential(in_channels = 64, out_channels = 64, kernel_size = 1, init_type = "xavier", use_batchnorm = True)

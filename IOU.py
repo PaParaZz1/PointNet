@@ -17,9 +17,9 @@ def dev(opt):
 	dev_dataloader = torch.utils.data.DataLoader(dev_dataset, batch_size=opt.batchsize,
 												  shuffle=False, num_workers=int(opt.workers))
 
-	num_classes = dev_dataset.num_seg_classes
+	num_classes = 8#dev_dataset.num_seg_classes
 	batch_size = opt.batchsize
-	num_points = 4096
+	num_points = 52480
 	print('classes', num_classes)
 
 	net = PointNetSeg(num_class = num_classes)
@@ -34,6 +34,7 @@ def dev(opt):
 	count = 0
 	for i, data in enumerate(dev_dataloader):
 		points, target = data
+		target = target.long()
 		points = points.permute(0,2,1)
 		target = target.cuda()
 		points = Variable(points).cuda()
@@ -128,9 +129,9 @@ def dev(opt):
 
 if __name__ == "__main__":
 		parser = argparse.ArgumentParser()
-		parser.add_argument('--batchsize', type=int, default=128, help='input batch size')
-		parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
-		parser.add_argument('--dev_model', type=str, default = 'fl7/seg_model_21.pth',  help='pretrained dev model path')
+		parser.add_argument('--batchsize', type=int, default=8, help='input batch size')
+		parser.add_argument('--workers', type=int, help='number of data loading workers', default=1)
+		parser.add_argument('--dev_model', type=str, default = 'nnew_006_1/seg_model_14.pth',  help='pretrained dev model path')
 
 
 		opt = parser.parse_args()

@@ -25,7 +25,7 @@ def train(opt):
 												  shuffle=True, num_workers=int(opt.workers))
 
 		num_classes = 8#train_dataset.num_seg_classes
-		num_points = train_dataset.npoints
+		num_points = 52480#train_dataset.npoints
 		print(len(train_dataset))
 		print(len(dev_dataset))
 		print('classes', num_classes)
@@ -45,7 +45,7 @@ def train(opt):
 		if opt.model != '':
 			net.load_state_dict(torch.load(opt.model))
 
-		optimizer = optim.Adam(net.parameters(), lr=1e-4)
+		optimizer = optim.Adam(net.parameters(), lr=3e-5)
 		lr_scheduler = MultiStepLR(optimizer, milestones=[10,20], gamma = 0.6)
 
 		num_batch = len(train_dataset)/opt.batchsize
@@ -56,6 +56,7 @@ def train(opt):
 			lr = lr_scheduler.get_lr()[0]
 			for i, data in enumerate(train_dataloader, 0):
 				points, target = data
+				target = target.long()
 				points = points.permute(0,2,1)
 				points, target = Variable(points).cuda(), Variable(target).cuda()
 				output, transform = net(points)
@@ -72,6 +73,7 @@ def train(opt):
 					net.eval()
 					j, data = next(enumerate(dev_dataloader, 0))
 					points, target = data
+					target = target.long()
 					points = points.permute(0,2,1)
 					points, target = Variable(points).cuda(), Variable(target).cuda()
 					output, _ = net(points)
@@ -178,6 +180,7 @@ def dev(opt):
 	net.eval()
 	for i, data in enumerate(dev_dataloader, 0):
 		points, target = data
+		target = target.long()
 		points, target = Variable(points).cuda(), Variable(target).cuda()
 		output, transform = net(points)
 	
@@ -188,11 +191,11 @@ def dev(opt):
 			continue
 if __name__ == "__main__":
 		parser = argparse.ArgumentParser()
-		parser.add_argument('--batchsize', type=int, default=128, help='input batch size')
-		parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
+		parser.add_argument('--batchsize', type=int, default=8, help='input batch size')
+		parser.add_argument('--workers', type=int, help='number of data loading workers', default=12)
 		parser.add_argument('--nepoch', type=int, default=30, help='number of epochs to train for')
-		parser.add_argument('--outdir', type=str, default='fl7',  help='output folder')
-		parser.add_argument('--model', type=str, default = 'seg006/seg_model_2.pth',  help='pretrained model path')
+		parser.add_argument('--outdir', type=str, default='nnew_006_1',  help='output folder')
+		parser.add_argument('--model', type=str, default = 'nnew_006/seg_model_18.pth',  help='pretrained model path')
 		parser.add_argument('--dev_model', type=str, default = '',  help='pretrained dev model path')
 
 

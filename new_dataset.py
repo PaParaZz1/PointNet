@@ -57,47 +57,63 @@ class TestDataset(torch.utils.data.Dataset):
             lines = f_catfile.readlines()
             self.category = dict(zip(lines, range(len(lines))))
         #建立路径
-        test_point = os.path.join(self.root, 'data/BDCI/test/pts')
-
+        test_point = os.path.join(self.root, 'data/t2/pts_2')
+        test_intensity = os.path.join(self.root, 'data/t2/intensity_2')
         #构建数据集
         if train:
             #数据集为0.8
             point_files = sorted(os.listdir(test_point)[:int(0.8*len(test_point))])
-            self.datapath = [os.path.join(test_point, point_files[i]) for i in range(len(point_files))]
+            intensity_files = sorted(os.listdir(test_intensity)[:int(0.8*len(test_intensity))])
+            self.datapath = [(os.path.join(test_point, point_files[i]),
+                              os.path.join(test_intensity, intensity_files[i]))
+                             for i in range(len(point_files))]
         else:
             #数据集为all
             point_files = sorted(os.listdir(test_point))
-            self.datapath = [os.path.join(test_point, point_files[i]) for i in range(len(point_files))]
+            intensity_files = sorted(os.listdir(test_intensity))
+            self.datapath = [(os.path.join(test_point, point_files[i]),
+                              os.path.join(test_intensity, intensity_files[i]))
+                             for i in range(len(point_files))]
 
     def __getitem__(self, index):
         fn = self.datapath[index]
         #载入sample文件内容
-        point_set = list(np.loadtxt(fn, delimiter=',').astype(np.float32).tolist())
+        point_set = np.loadtxt(fn[0], delimiter=',').astype(np.float32)
+        intensity_set = np.loadtxt(fn[1]).astype(np.float32)
         #归一化
-        means = list(np.mean(point_set, axis=0).tolist())
-        fangcha = list(np.var(point_set, axis=0).tolist())
-        fangcha = list(map(math.sqrt, fangcha))
-        for i in range(len(point_set)):
-            point_set[i][0] = (point_set[i][0] - means[0]) / fangcha[0]
-            point_set[i][1] = (point_set[i][1] - means[1]) / fangcha[1]
-            point_set[i][2] = (point_set[i][2] - means[2]) / fangcha[2]
-        point_set = np.array(point_set)
+        means = np.mean(point_set, axis=0)
+        fangcha = np.var(point_set, axis=0)
+        fangcha = np.sqrt(fangcha)
+        point_set[:, 0] -= means[0]
+        point_set[:, 1] -= means[1]
+        point_set[:, 2] -= means[2]
+        point_set[:, 0] /= fangcha[0]
+        point_set[:, 1] /= fangcha[1]
+        point_set[:, 2] /= fangcha[2]
+
+        inten_min, inten_max = np.min(intensity_set, axis=0), np.max(intensity_set, axis=0)
+        intensity_set -= inten_min
+        intensity_set /= (inten_max - inten_min)
+
+        intensity_set = intensity_set[:, np.newaxis]
+        point_set = np.concatenate([point_set, intensity_set], axis=1)
+        #转为tensor变量
         point_set = torch.from_numpy(point_set)
         #返回坐标，文件名
-        return point_set, os.path.basename(fn)
+        return point_set, os.path.basename(fn[0])
 
     def __len__(self):
         return len(self.datapath)
 
 if __name__ == '__main__':
-    print('test')
-    d = PartDataset(root='/mnt/lustre/niuyazhe')
-    print(len(d))
-    ps, seg = d[0]
-    print(ps[0], seg[0])
-    print(ps.size(), ps.type(), seg.size(), seg.type())
+    #print('test')
+    #d = PartDataset(root='/mnt/lustre/niuyazhe')
+    #print(len(d))
+    #ps, seg = d[0]
+    #print(ps[0], seg[0])
+    #print(ps.size(), ps.type(), seg.size(), seg.type())
     d = TestDataset(root='/mnt/lustre/niuyazhe')
     print(len(d))
     ps, name = d[0]
-    print(name)
+    print(name, ps[0])
     print(ps.size(), ps.type())

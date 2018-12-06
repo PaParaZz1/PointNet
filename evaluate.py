@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from datasets import TestDataset
+from new_dataset import TestDataset
 from network import PointNetSeg
 
 
@@ -38,7 +38,7 @@ def test(opt):
 			count += 1;
 			print("count{}".format(count))
 			# write file
-			with open(os.path.join(root, 'data/BDCI/result8', name[i]), 'w') as f_result:
+			with open(os.path.join(root, 'data/BDCI/new1', name[i]), 'w') as f_result:
 				ans = []
 				for item in output_choice[i]:
 					ans.append(str(item)+'\n')
@@ -48,8 +48,8 @@ if __name__ == "__main__":
 		parser = argparse.ArgumentParser()
 		parser.add_argument('--batchsize', type=int, default=1, help='input batch size')
 		parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-		parser.add_argument('--outdir', type=str, default='result2',  help='output folder')
-		parser.add_argument('--model', type=str, default = '/mnt/lustre/niuyazhe/cloud3/fl7/seg_model_21.pth',  help='pretrained model path')
+		parser.add_argument('--outdir', type=str, default='new1',  help='output folder')
+		parser.add_argument('--model', type=str, default = '/mnt/lustre/niuyazhe/cloud5/nnew_006/seg_model_13.pth',  help='pretrained model path')
 
 
 		opt = parser.parse_args()

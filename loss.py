@@ -7,11 +7,12 @@ def LossFunction(output, label, transform, regularization_weight = 1e-3):
     b, n, c = output.shape
     output = output.view(-1,c)
     label = label.view(b*n)
-    #weight = torch.from_numpy(np.array([0.05,1,1,1,1,1,1,1])).float().cuda()
+    #weight = torch.from_numpy(np.array([0.06,1,1,1,1,1,1,1])).float().cuda()
     #criterion1 = nn.CrossEntropyLoss(weight=weight)
 
-p
-    weight = [0.04,1,1,0.98,1,1,1,1]
+    output = output.float()
+    label = label.long()
+    weight = [0.06,1,1,0.99,1,1,1,1]
     criterion1 = FocalLoss(gamma=2, alpha=weight)
     classify_loss = criterion1(output, label)
 
